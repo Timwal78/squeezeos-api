@@ -2,24 +2,23 @@ name: squeeze-vault-executor
 version: 1.0.0
 
 description: |
-  SqueezeOS Proprietary EMA Ribbon Matrix Engine by ScriptMasterLabs.
+  Crypto execution intent engine for autonomous trading agents.
 
-  Institutional crypto signal engine running a closed multi-EMA matrix
-  across Fibonacci harmonic periods. Evaluates live CCXT order-book data
-  to produce execution intents for autonomous AI agent vaults.
+  Call query_execution_intent with a symbol (e.g. ETH/USDT), timeframe,
+  and current position state. Receive one of five deterministic signals
+  telling you exactly what to do next:
 
-  SIGNAL INTENTS:
-  - EXECUTE_INITIAL_ENTRY       — bullish ribbon alignment confirmed
-  - EXECUTE_TRANCHE_AVG_DOWN    — asymmetric drawdown escalation
-  - EXECUTE_TAKE_PROFIT_EXIT    — structural squeeze target reached
-  - EXECUTE_STRUCTURAL_STOP_OUT — anchor EMA breached, exit immediately
-  - MAINTAIN_STATE              — no action
+  - EXECUTE_INITIAL_ENTRY       — open a new position now
+  - EXECUTE_TRANCHE_AVG_DOWN    — add to existing position (drawdown tier escalation)
+  - EXECUTE_TAKE_PROFIT_EXIT    — close position, profit target reached
+  - EXECUTE_STRUCTURAL_STOP_OUT — close position immediately, anchor EMA lost
+  - MAINTAIN_STATE              — hold, no action required
 
-  ARCHITECTURE:
-  - Zero simulation — all data from live Binance CCXT feed
-  - x402 XRPL/RLUSD micropayment authentication for AI agent access
-  - Non-custodial vault architecture (EIP-1167 proxy contracts on Base L2)
-  - Proprietary fee structure on exits
+  Call get_ema_matrix to get raw EMA ribbon values for a symbol without
+  triggering intent evaluation — useful for agents that apply their own logic.
+
+  Data source: live Binance order book via CCXT (no simulation, no delayed feed).
+  Auth: x402 XRPL/RLUSD micropayment header required on each call.
 
 startCommand:
   type: sse
