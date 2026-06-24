@@ -8,8 +8,10 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Query
+import secrets
+from fastapi import FastAPI, Query, Depends, HTTPException, status
 from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from mcp.server.fastmcp import FastMCP
 
 from api.x402_middleware import X402PaymentMiddleware
@@ -17,6 +19,22 @@ from core.matrix_engine import get_live_intent
 from core.backtest_engine import run_backtest_symbols
 
 load_dotenv()
+
+_security = HTTPBasic()
+
+def _require_dashboard_auth(credentials: HTTPBasicCredentials = Depends(_security)):
+    correct_user = os.getenv("DASHBOARD_USER", "")
+    correct_pass = os.getenv("DASHBOARD_PASS", "")
+    ok = (
+        secrets.compare_digest(credentials.username.encode(), correct_user.encode()) and
+        secrets.compare_digest(credentials.password.encode(), correct_pass.encode())
+    )
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized",
+            headers={"WWW-Authenticate": "Basic"},
+        )
 
 mcp = FastMCP("SqueezeOS")
 
@@ -168,7 +186,7 @@ async def backtest(
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard():
+async def dashboard(_: None = Depends(_require_dashboard_auth)):
     return """<!DOCTYPE html>
 <html lang="en">
 <head>
