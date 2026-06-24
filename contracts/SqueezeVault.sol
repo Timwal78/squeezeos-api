@@ -27,18 +27,23 @@ interface ISwapRouter {
  *   - Only the vault owner can trigger swaps
  *   - No fund pooling, no leverage, no margin, no custody by platform
  *   - All swaps are restricted spot-market intents via Uniswap V3
- *   - Atomic fee snipping on every swap:
- *       BASE_FEE_BPS  = 35  (0.35% of swap amountIn routed to ENGINEERING_WALLET)
- *       PERF_ROYALTY  = 15% of realized gains when exit >= 1.35x entry price
+ *   - Atomic fee snipping on every swap (proprietary rate structure)
+ *   - Performance royalty on profitable exits above squeeze target
  */
 contract SqueezeVault is Initializable {
     using SafeERC20 for IERC20;
 
-    // ─── Constants ───────────────────────────────────────────────────────────
-    uint256 public constant BASE_FEE_BPS    = 35;       // 0.35%
-    uint256 public constant PERF_ROYALTY_BPS = 1500;    // 15.00%
-    uint256 public constant SQUEEZE_TARGET   = 135;     // 1.35x in 100-units
-    uint256 public constant BPS_DENOM        = 10_000;
+    // ─── Constants (set at deployment — not published) ───────────────────────
+    uint256 public immutable BASE_FEE_BPS;
+    uint256 public immutable PERF_ROYALTY_BPS;
+    uint256 public immutable SQUEEZE_TARGET;
+    uint256 public constant  BPS_DENOM = 10_000;
+
+    constructor(uint256 _baseFee, uint256 _perfRoyalty, uint256 _squeezeTarget) {
+        BASE_FEE_BPS     = _baseFee;
+        PERF_ROYALTY_BPS = _perfRoyalty;
+        SQUEEZE_TARGET   = _squeezeTarget;
+    }
 
     // ─── Storage (one slot per proxy clone) ──────────────────────────────────
     address public owner;

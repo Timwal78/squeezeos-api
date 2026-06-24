@@ -2,25 +2,24 @@ name: squeeze-vault-executor
 version: 1.0.0
 
 description: |
-  SqueezeOS 5-EMA Fibonacci Ribbon Matrix Engine by ScriptMasterLabs.
+  SqueezeOS Proprietary EMA Ribbon Matrix Engine by ScriptMasterLabs.
 
-  Institutional crypto signal engine running a closed 5-EMA matrix on
-  periods [55, 89, 144, 233, 365] — hardcoded Fibonacci expansion harmony
-  (phi ~1.618). Evaluates live CCXT order-book data to produce execution
-  intents for autonomous AI agent vaults.
+  Institutional crypto signal engine running a closed multi-EMA matrix
+  across Fibonacci harmonic periods. Evaluates live CCXT order-book data
+  to produce execution intents for autonomous AI agent vaults.
 
   SIGNAL INTENTS:
-  - EXECUTE_INITIAL_ENTRY       — bullish ribbon + price above EMA_365 anchor
-  - EXECUTE_TRANCHE_AVG_DOWN    — asymmetric drawdown escalation (4% tiers)
-  - EXECUTE_TAKE_PROFIT_EXIT    — structural +35% squeeze target reached
-  - EXECUTE_STRUCTURAL_STOP_OUT — EMA_365 anchor breached, exit immediately
+  - EXECUTE_INITIAL_ENTRY       — bullish ribbon alignment confirmed
+  - EXECUTE_TRANCHE_AVG_DOWN    — asymmetric drawdown escalation
+  - EXECUTE_TAKE_PROFIT_EXIT    — structural squeeze target reached
+  - EXECUTE_STRUCTURAL_STOP_OUT — anchor EMA breached, exit immediately
   - MAINTAIN_STATE              — no action
 
   ARCHITECTURE:
   - Zero simulation — all data from live Binance CCXT feed
   - x402 XRPL/RLUSD micropayment authentication for AI agent access
   - Non-custodial vault architecture (EIP-1167 proxy contracts on Base L2)
-  - Atomic fee snipping: 0.35% base + 15% performance royalty on exits
+  - Proprietary fee structure on exits
 
 startCommand:
   type: sse

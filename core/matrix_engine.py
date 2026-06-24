@@ -1,6 +1,6 @@
 """
 SqueezeOS Core Mathematical Engine
-5-EMA Fibonacci Ribbon Matrix — Periods: [55, 89, 144, 233, 365]
+Proprietary EMA Ribbon Matrix — configuration loaded from environment.
 Zero simulation. All data from live CCXT feed.
 """
 import os
@@ -9,7 +9,13 @@ import pandas as pd
 import ccxt
 
 
-EMA_PERIODS = [55, 89, 144, 233, 365]
+def _load_periods() -> list[int]:
+    raw = os.getenv("SML_EMA_PERIODS", "")
+    if raw:
+        return [int(x.strip()) for x in raw.split(",")]
+    raise RuntimeError("SML_EMA_PERIODS env var not set")
+
+EMA_PERIODS = _load_periods()
 _EXCHANGE: ccxt.Exchange | None = None
 
 
@@ -68,7 +74,10 @@ def evaluate_execution_intent(
     else:
         pnl = (close - average_entry_price) / average_entry_price
 
-        target_drawdown = -0.04 * (drawdown_tier + 1)
+        dd_step = float(os.getenv("SML_DRAWDOWN_STEP", "0"))
+        if not dd_step:
+            raise RuntimeError("SML_DRAWDOWN_STEP env var not set")
+        target_drawdown = -dd_step * (drawdown_tier + 1)
 
         if (
             pnl < target_drawdown
@@ -78,7 +87,10 @@ def evaluate_execution_intent(
         ):
             return "EXECUTE_TRANCHE_AVG_DOWN", close
 
-        elif close > average_entry_price * 1.35:
+        profit_target = float(os.getenv("SML_PROFIT_TARGET", "0"))
+        if not profit_target:
+            raise RuntimeError("SML_PROFIT_TARGET env var not set")
+        elif close > average_entry_price * profit_target:
             return "EXECUTE_TAKE_PROFIT_EXIT", close
 
         elif not above_anchor:

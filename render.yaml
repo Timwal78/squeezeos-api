@@ -15,5 +15,11 @@ services:
         sync: false
       - key: X402_HMAC_SECRET
         generateValue: true
+      - key: SML_EMA_PERIODS
+        sync: false
+      - key: SML_DRAWDOWN_STEP
+        sync: false
+      - key: SML_PROFIT_TARGET
+        sync: false
     healthCheckPath: /health
     autoDeploy: true
