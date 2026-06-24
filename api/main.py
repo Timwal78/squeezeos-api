@@ -14,6 +14,7 @@ from mcp.server.fastmcp import FastMCP
 
 from api.x402_middleware import X402PaymentMiddleware
 from core.matrix_engine import get_live_intent
+from core.backtest_engine import run_backtest_symbols
 
 load_dotenv()
 
@@ -46,6 +47,23 @@ def query_execution_intent(
         average_entry_price=average_entry_price,
         drawdown_tier=drawdown_tier,
     )
+
+
+@mcp.tool()
+def run_backtest(
+    symbols: str = "ETH/USDT,BTC/USDT,SOL/USDT,AVAX/USDT,XRP/USDT",
+    timeframe: str = "1d",
+    bars: int = 365,
+) -> dict:
+    """
+    Run a live backtest of the proprietary signal engine against real OHLC data.
+    Returns per-symbol performance metrics and aggregate summary.
+    symbols: comma-separated CCXT pairs e.g. ETH/USDT,BTC/USDT
+    timeframe: candle timeframe e.g. 1d, 4h, 1h
+    bars: number of candles per symbol (max 500)
+    """
+    symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
+    return run_backtest_symbols(symbol_list, timeframe, min(bars, 500))
 
 
 @mcp.tool()
@@ -130,6 +148,23 @@ async def matrix_scan(
     }
     results.sort(key=lambda x: priority.get(x.get("intent", "ERROR"), 5))
     return {"timeframe": timeframe, "scan_count": len(results), "results": results}
+
+
+@app.get("/api/backtest")
+async def backtest(
+    symbols: str = Query("ETH/USDT,BTC/USDT,SOL/USDT,AVAX/USDT,XRP/USDT"),
+    timeframe: str = Query("1d"),
+    bars: int = Query(365),
+):
+    """
+    Live backtest endpoint. Pulls real OHLC from Kraken, runs the signal engine,
+    returns per-symbol metrics + aggregate. Callable by any HTTP client or AI agent.
+    """
+    try:
+        symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
+        return run_backtest_symbols(symbol_list, timeframe, min(bars, 500))
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
