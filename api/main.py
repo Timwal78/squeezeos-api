@@ -159,6 +159,11 @@ async def dashboard():
   .ema-row span:last-child{color:#7a9aba}
   .price{font-size:20px;color:#ff5c1a;font-weight:700;margin-bottom:6px}
   .ts{color:#2a3a5a;font-size:10px;margin-top:16px}
+  .contracts{background:#0a0d14;border:1px solid #1a2a40;border-radius:6px;padding:14px;margin-bottom:20px;font-size:11px}
+  .contract-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #111820}
+  .contract-row:last-child{border-bottom:none}
+  .contract-label{color:#3a5a7a}
+  .contract-addr{color:#ff5c1a;font-size:10px}
   .header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
   .refresh{background:#ff5c1a;color:#080b12;border:none;padding:6px 16px;border-radius:3px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px}
   .refresh:hover{background:#e04a0a}
@@ -176,6 +181,10 @@ async def dashboard():
     <span class="status ok" id="status">● LIVE</span>&nbsp;&nbsp;
     <button class="refresh" onclick="load()">REFRESH</button>
   </div>
+</div>
+<div class="contracts">
+  <div class="contract-row"><span class="contract-label">VaultFactory · Base L2</span><span class="contract-addr">0xC9A3Faa4f605F53Dd46578442aAAbA048eEb3031</span></div>
+  <div class="contract-row"><span class="contract-label">SqueezeVault impl · Base L2</span><span class="contract-addr">0x1F521a7dFdD6566Fb4d7B8d9BBA155dB7505226F</span></div>
 </div>
 <div class="grid" id="grid">Loading...</div>
 <div class="ts" id="ts"></div>
@@ -244,4 +253,8 @@ async def root():
         "docs": "/docs",
         "payment_network": "XRPL",
         "payment_asset": "RLUSD",
+        "vault_factory": "0xC9A3Faa4f605F53Dd46578442aAAbA048eEb3031",
+        "vault_implementation": "0x1F521a7dFdD6566Fb4d7B8d9BBA155dB7505226F",
+        "chain": "base",
+        "chain_id": 8453,
     }
