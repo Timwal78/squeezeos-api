@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: squeezeos-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: CCXT_EXCHANGE
+        value: binance
+      - key: XRPL_NODE
+        value: https://xrplcluster.com
+      - key: X402_AMOUNT_DROPS
+        value: "1000"
+      - key: MASTER_WALLET_ADDRESS
+        sync: false
+      - key: X402_HMAC_SECRET
+        generateValue: true
+    healthCheckPath: /health
+    autoDeploy: true
