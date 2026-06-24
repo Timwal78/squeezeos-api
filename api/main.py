@@ -68,7 +68,7 @@ app = FastAPI(
 )
 
 app.add_middleware(X402PaymentMiddleware)
-app.mount("/mcp", mcp.streamable_http_app())
+app.mount("/mcp", mcp.sse_app())
 
 
 @app.get("/health")
