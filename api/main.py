@@ -234,12 +234,9 @@ async function load(){
     g.innerHTML='';
     for(const s of d.results){
       const intentClass=s.intent||'ERROR';
-      const emas=s.error?'<div style="color:#ff4c4c">'+s.error+'</div>':`
-        <div class="ema-row"><span>EMA 55</span><span>${(s.ema_55||0).toFixed(2)}</span></div>
-        <div class="ema-row"><span>EMA 89</span><span>${(s.ema_89||0).toFixed(2)}</span></div>
-        <div class="ema-row"><span>EMA 144</span><span>${(s.ema_144||0).toFixed(2)}</span></div>
-        <div class="ema-row"><span>EMA 233</span><span>${(s.ema_233||0).toFixed(2)}</span></div>
-        <div class="ema-row"><span>EMA 365</span><span>${(s.ema_365||0).toFixed(2)}</span></div>`;
+      const emaKeys=Object.keys(s).filter(k=>k.startsWith('ema_'));
+      const ribbonRows=emaKeys.map((k,i)=>`<div class="ema-row"><span>RIBBON ${i+1}</span><span>${(s[k]||0).toFixed(2)}</span></div>`).join('');
+      const emas=s.error?'<div style="color:#ff4c4c">'+s.error+'</div>':ribbonRows;
       g.innerHTML+=`<div class="card">
         <div class="sym">${s.symbol}</div>
         <div class="price">${s.close?s.close.toFixed(2):'-'}</div>

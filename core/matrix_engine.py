@@ -112,15 +112,12 @@ def get_live_intent(
     intent, price = evaluate_execution_intent(
         latest, current_position, average_entry_price, drawdown_tier
     )
+    ribbon = {f"ribbon_{i+1}": float(latest[f"EMA_{p}"]) for i, p in enumerate(EMA_PERIODS)}
     return {
         "symbol": symbol,
         "timeframe": timeframe,
         "close": float(latest["Close"]),
-        "ema_55": float(latest["EMA_55"]),
-        "ema_89": float(latest["EMA_89"]),
-        "ema_144": float(latest["EMA_144"]),
-        "ema_233": float(latest["EMA_233"]),
-        "ema_365": float(latest["EMA_365"]),
+        **ribbon,
         "intent": intent,
         "execution_price": float(price) if price is not None else None,
     }
