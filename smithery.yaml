@@ -1,0 +1,71 @@
+name: squeezeos-matrix-engine
+version: 1.0.0
+
+description: |
+  SqueezeOS 5-EMA Fibonacci Ribbon Matrix Engine by ScriptMasterLabs.
+
+  Institutional crypto signal engine running a closed 5-EMA matrix on
+  periods [55, 89, 144, 233, 365] — hardcoded Fibonacci expansion harmony
+  (phi ~1.618). Evaluates live CCXT order-book data to produce execution
+  intents for autonomous AI agent vaults.
+
+  SIGNAL INTENTS:
+  - EXECUTE_INITIAL_ENTRY       — bullish ribbon + price above EMA_365 anchor
+  - EXECUTE_TRANCHE_AVG_DOWN    — asymmetric drawdown escalation (4% tiers)
+  - EXECUTE_TAKE_PROFIT_EXIT    — structural +35% squeeze target reached
+  - EXECUTE_STRUCTURAL_STOP_OUT — EMA_365 anchor breached, exit immediately
+  - MAINTAIN_STATE              — no action
+
+  ARCHITECTURE:
+  - Zero simulation — all data from live Binance CCXT feed
+  - x402 XRPL/RLUSD micropayment authentication for AI agent access
+  - Non-custodial vault architecture (EIP-1167 proxy contracts on Base L2)
+  - Atomic fee snipping: 0.35% base + 15% performance royalty on exits
+
+startCommand:
+  type: sse
+  url: https://squeezeos-api-1.onrender.com/mcp/sse
+
+configSchema:
+  type: object
+  properties:
+    xrpl_tx_hash:
+      type: string
+      description: "XRPL transaction hash proving RLUSD micropayment to access premium endpoints"
+  required: []
+
+license: Proprietary
+homepage: https://scriptmasterlabs.com
+repository: https://github.com/timwal78/squeezeos-api
+author:
+  name: ScriptMasterLabs
+  url: https://scriptmasterlabs.com
+
+tags:
+  - trading
+  - crypto
+  - signals
+  - ema
+  - fibonacci
+  - institutional
+  - defi
+  - autonomous-agents
+  - xrpl
+  - rlusd
+  - base-l2
+  - non-custodial
+
+categories:
+  - finance
+  - trading
+  - market-data
+  - crypto
+
+tools:
+  - name: query_execution_intent
+    description: "Live 5-EMA matrix execution intent for any CCXT crypto pair. Returns EXECUTE_INITIAL_ENTRY, EXECUTE_TRANCHE_AVG_DOWN, EXECUTE_TAKE_PROFIT_EXIT, EXECUTE_STRUCTURAL_STOP_OUT, or MAINTAIN_STATE."
+    cost: "x402 XRPL/RLUSD micropayment"
+
+  - name: get_ema_matrix
+    description: "Current EMA_55/89/144/233/365 ribbon values for a symbol — no intent evaluation."
+    cost: "x402 XRPL/RLUSD micropayment"
