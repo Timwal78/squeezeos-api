@@ -132,6 +132,18 @@ async def matrix_scan(
     return {"timeframe": timeframe, "scan_count": len(results), "results": results}
 
 
+@app.get("/.well-known/mcp.json")
+async def well_known_mcp():
+    return {
+        "name": "squeeze-vault-executor",
+        "version": "1.0.0",
+        "description": "SqueezeOS 5-EMA Fibonacci Ribbon vault executor — crypto execution intents via x402 XRPL/RLUSD payment rails",
+        "mcp_endpoint": "https://squeezeos-api-1.onrender.com/mcp/sse",
+        "transport": "sse",
+        "tools": ["query_execution_intent", "get_ema_matrix"],
+    }
+
+
 @app.get("/health")
 async def health():
     return {"status": "operational", "service": "SqueezeOS MCP Gateway"}
