@@ -9,7 +9,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from mcp.server.fastmcp import FastMCP
 
 from api.x402_middleware import X402PaymentMiddleware
@@ -130,6 +130,92 @@ async def matrix_scan(
     }
     results.sort(key=lambda x: priority.get(x.get("intent", "ERROR"), 5))
     return {"timeframe": timeframe, "scan_count": len(results), "results": results}
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard():
+    return """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SqueezeOS — Live Matrix Dashboard</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#080b12;color:#c8d0e0;font-family:monospace;font-size:13px;padding:24px}
+  h1{color:#ff5c1a;font-size:18px;letter-spacing:2px;margin-bottom:4px}
+  .sub{color:#3a4a6a;font-size:11px;letter-spacing:3px;margin-bottom:24px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:24px}
+  .card{background:#0e1220;border:1px solid #1a2a40;border-radius:6px;padding:16px}
+  .sym{color:#f0f0f0;font-size:15px;font-weight:700;margin-bottom:8px}
+  .intent{display:inline-block;padding:3px 10px;border-radius:3px;font-size:11px;letter-spacing:1px;margin-bottom:12px}
+  .EXECUTE_INITIAL_ENTRY{background:#1a4a1a;color:#4cff4c;border:1px solid #2a7a2a}
+  .EXECUTE_TRANCHE_AVG_DOWN{background:#1a3a4a;color:#4cb8ff;border:1px solid #2a5a7a}
+  .EXECUTE_TAKE_PROFIT_EXIT{background:#4a3a1a;color:#ffb84c;border:1px solid #7a5a2a}
+  .EXECUTE_STRUCTURAL_STOP_OUT{background:#4a1a1a;color:#ff4c4c;border:1px solid #7a2a2a}
+  .MAINTAIN_STATE{background:#1a1a2a;color:#3a4a6a;border:1px solid #2a2a3a}
+  .ERROR{background:#3a1a1a;color:#ff4c4c;border:1px solid #6a2a2a}
+  .ema-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #111820;color:#3a5a7a}
+  .ema-row span:last-child{color:#7a9aba}
+  .price{font-size:20px;color:#ff5c1a;font-weight:700;margin-bottom:6px}
+  .ts{color:#2a3a5a;font-size:10px;margin-top:16px}
+  .header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+  .refresh{background:#ff5c1a;color:#080b12;border:none;padding:6px 16px;border-radius:3px;cursor:pointer;font-family:monospace;font-size:11px;letter-spacing:1px}
+  .refresh:hover{background:#e04a0a}
+  .status{color:#2a4a2a;font-size:11px}
+  .status.ok{color:#2a7a2a}
+</style>
+</head>
+<body>
+<div class="header-row">
+  <div>
+    <h1>SQUEEZE VAULT EXECUTOR</h1>
+    <div class="sub">SCRIPTMASTERLABS · LIVE MATRIX DASHBOARD</div>
+  </div>
+  <div>
+    <span class="status ok" id="status">● LIVE</span>&nbsp;&nbsp;
+    <button class="refresh" onclick="load()">REFRESH</button>
+  </div>
+</div>
+<div class="grid" id="grid">Loading...</div>
+<div class="ts" id="ts"></div>
+<script>
+async function load(){
+  document.getElementById('status').textContent='● FETCHING';
+  document.getElementById('status').className='status';
+  try{
+    const r=await fetch('/api/matrix-scan');
+    const d=await r.json();
+    const g=document.getElementById('grid');
+    g.innerHTML='';
+    for(const s of d.results){
+      const intentClass=s.intent||'ERROR';
+      const emas=s.error?'<div style="color:#ff4c4c">'+s.error+'</div>':`
+        <div class="ema-row"><span>EMA 55</span><span>${(s.ema_55||0).toFixed(2)}</span></div>
+        <div class="ema-row"><span>EMA 89</span><span>${(s.ema_89||0).toFixed(2)}</span></div>
+        <div class="ema-row"><span>EMA 144</span><span>${(s.ema_144||0).toFixed(2)}</span></div>
+        <div class="ema-row"><span>EMA 233</span><span>${(s.ema_233||0).toFixed(2)}</span></div>
+        <div class="ema-row"><span>EMA 365</span><span>${(s.ema_365||0).toFixed(2)}</span></div>`;
+      g.innerHTML+=`<div class="card">
+        <div class="sym">${s.symbol}</div>
+        <div class="price">${s.close?s.close.toFixed(2):'-'}</div>
+        <div class="intent ${intentClass}">${(s.intent||'ERROR').replace(/_/g,' ')}</div>
+        ${emas}
+      </div>`;
+    }
+    document.getElementById('ts').textContent='Last updated: '+new Date().toUTCString()+' · '+d.scan_count+' pairs · 15m timeframe';
+    document.getElementById('status').textContent='● LIVE';
+    document.getElementById('status').className='status ok';
+  }catch(e){
+    document.getElementById('grid').innerHTML='<div style="color:#ff4c4c">Error: '+e.message+'</div>';
+    document.getElementById('status').textContent='● ERROR';
+  }
+}
+load();
+setInterval(load,60000);
+</script>
+</body>
+</html>"""
 
 
 @app.get("/.well-known/mcp.json")
