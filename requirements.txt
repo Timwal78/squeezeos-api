@@ -5,5 +5,4 @@ httpx==0.27.0
 ccxt==4.3.89
 pandas==2.2.2
 numpy==1.26.4
-web3==6.19.0
 python-dotenv==1.0.1
