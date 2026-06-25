@@ -11,13 +11,13 @@ description: |
   - EXECUTE_INITIAL_ENTRY       — open a new position now
   - EXECUTE_TRANCHE_AVG_DOWN    — add to existing position (drawdown tier escalation)
   - EXECUTE_TAKE_PROFIT_EXIT    — close position, profit target reached
-  - EXECUTE_STRUCTURAL_STOP_OUT — close position immediately, anchor EMA lost
+  - EXECUTE_STRUCTURAL_STOP_OUT — close position immediately, structural anchor lost
   - MAINTAIN_STATE              — hold, no action required
 
-  Call get_ema_matrix to get raw EMA ribbon values for a symbol without
+  Call get_ribbon_matrix to get raw proprietary ribbon values for a symbol without
   triggering intent evaluation — useful for agents that apply their own logic.
 
-  Data source: live Binance order book via CCXT (no simulation, no delayed feed).
+  Data source: live Kraken order book via CCXT (no simulation, no delayed feed).
   Auth: x402 XRPL/RLUSD micropayment header required on each call.
 
 startCommand:
@@ -43,8 +43,6 @@ tags:
   - trading
   - crypto
   - signals
-  - ema
-  - fibonacci
   - institutional
   - defi
   - autonomous-agents
@@ -61,9 +59,9 @@ categories:
 
 tools:
   - name: query_execution_intent
-    description: "Live 5-EMA matrix execution intent for any CCXT crypto pair. Returns EXECUTE_INITIAL_ENTRY, EXECUTE_TRANCHE_AVG_DOWN, EXECUTE_TAKE_PROFIT_EXIT, EXECUTE_STRUCTURAL_STOP_OUT, or MAINTAIN_STATE."
+    description: "Proprietary ribbon matrix execution intent for any CCXT crypto pair. Returns EXECUTE_INITIAL_ENTRY, EXECUTE_TRANCHE_AVG_DOWN, EXECUTE_TAKE_PROFIT_EXIT, EXECUTE_STRUCTURAL_STOP_OUT, or MAINTAIN_STATE."
     cost: "x402 XRPL/RLUSD micropayment"
 
-  - name: get_ema_matrix
-    description: "Current EMA_55/89/144/233/365 ribbon values for a symbol — no intent evaluation."
+  - name: get_ribbon_matrix
+    description: "Current proprietary ribbon values for a symbol — no intent evaluation."
     cost: "x402 XRPL/RLUSD micropayment"

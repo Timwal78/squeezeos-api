@@ -49,13 +49,13 @@ def query_execution_intent(
 ) -> dict:
     """
     Returns the current execution intent for a given symbol based on the
-    5-EMA Fibonacci Ribbon Matrix. Requires live CCXT price data.
+    proprietary ribbon matrix engine. Requires live CCXT price data.
 
     Intent values:
       EXECUTE_INITIAL_ENTRY       — open a new position
       EXECUTE_TRANCHE_AVG_DOWN    — add to position on drawdown tier
-      EXECUTE_TAKE_PROFIT_EXIT    — close position at +35% structural target
-      EXECUTE_STRUCTURAL_STOP_OUT — close position on EMA_365 breach
+      EXECUTE_TAKE_PROFIT_EXIT    — close position at structural profit target
+      EXECUTE_STRUCTURAL_STOP_OUT — close position on structural anchor breach
       MAINTAIN_STATE              — no action
     """
     return get_live_intent(
@@ -85,12 +85,13 @@ def run_backtest(
 
 
 @mcp.tool()
-def get_ema_matrix(symbol: str, timeframe: str = "15m") -> dict:
+def get_ribbon_matrix(symbol: str, timeframe: str = "15m") -> dict:
     """
-    Returns the current 5-EMA ribbon values for a symbol without evaluating intent.
+    Returns the current proprietary ribbon values for a symbol without evaluating intent.
     """
     result = get_live_intent(symbol=symbol, timeframe=timeframe)
-    return {k: result[k] for k in ("symbol", "timeframe", "close", "ema_55", "ema_89", "ema_144", "ema_233", "ema_365")}
+    ribbon_keys = [k for k in result if k.startswith("ribbon_")]
+    return {k: result[k] for k in ("symbol", "timeframe", "close", *ribbon_keys)}
 
 
 @asynccontextmanager
@@ -120,7 +121,7 @@ async def matrix_intent(
     drawdown_tier: int = Query(0),
 ):
     """
-    Direct REST wrapper for the 5-EMA matrix engine.
+    Direct REST wrapper for the proprietary ribbon matrix engine.
     Callable by any HTTP client — no SSE/MCP client required.
     Used by sml_agent.py for crypto signal collection.
     """
@@ -282,10 +283,10 @@ async def well_known_mcp():
     return {
         "name": "squeeze-vault-executor",
         "version": "1.0.0",
-        "description": "SqueezeOS 5-EMA Fibonacci Ribbon vault executor — crypto execution intents via x402 XRPL/RLUSD payment rails",
+        "description": "SqueezeOS proprietary ribbon matrix vault executor — crypto execution intents via x402 XRPL/RLUSD payment rails",
         "mcp_endpoint": "https://squeezeos-api-1.onrender.com/mcp/sse",
         "transport": "sse",
-        "tools": ["query_execution_intent", "get_ema_matrix"],
+        "tools": ["query_execution_intent", "get_ribbon_matrix"],
     }
 
 

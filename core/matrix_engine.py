@@ -38,7 +38,7 @@ def fetch_ohlcv(symbol: str, timeframe: str = "15m", limit: int = 500) -> pd.Dat
 
 def compute_sml_matrix(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Computes the proprietary 5-EMA ribbon grid.
+    Computes the proprietary ribbon grid.
     Failsafe: No drifting, no smoothing approximations, no lag offsets.
     """
     for p in EMA_PERIODS:
@@ -57,18 +57,14 @@ def evaluate_execution_intent(
     Core execution logic governing non-custodial capital protection.
     Returns (intent_signal, execution_price | None)
     """
-    close       = df_row["Close"]
-    ema_55      = df_row["EMA_55"]
-    ema_89      = df_row["EMA_89"]
-    ema_144     = df_row["EMA_144"]
-    ema_233     = df_row["EMA_233"]
-    ema_365     = df_row["EMA_365"]
+    close  = df_row["Close"]
+    r      = [df_row[f"EMA_{p}"] for p in EMA_PERIODS]
 
-    bullish_ribbon = ema_55 > ema_89 > ema_144 > ema_233
-    above_anchor   = close > ema_365
+    bullish_ribbon = r[0] > r[1] > r[2] > r[3]
+    above_anchor   = close > r[4]
 
     if current_position == 0:
-        if bullish_ribbon and above_anchor and close > ema_55:
+        if bullish_ribbon and above_anchor and close > r[0]:
             return "EXECUTE_INITIAL_ENTRY", close
 
     else:
