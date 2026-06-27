@@ -6,3 +6,6 @@ ccxt==4.3.89
 pandas==2.2.2
 numpy==1.26.4
 python-dotenv==1.0.1
+web3>=6.0.0
+eth-account>=0.10.0
+stripe>=8.0.0

@@ -4,12 +4,14 @@ MCP endpoint: /mcp/sse  (x402 payment-gated)
 REST endpoint: /api/matrix-intent  (direct agent integration)
 """
 import os
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 from typing import Optional
 
 from dotenv import load_dotenv
 import secrets
-from fastapi import FastAPI, Query, Depends, HTTPException, status
+from fastapi import FastAPI, Query, Depends, HTTPException, status, Request
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from mcp.server.fastmcp import FastMCP
@@ -17,6 +19,9 @@ from mcp.server.fastmcp import FastMCP
 from api.x402_middleware import X402PaymentMiddleware
 from core.matrix_engine import get_live_intent
 from core.backtest_engine import run_backtest_symbols
+from core.vault_executor import _load_config, run_execution_cycle, get_vault_state
+
+log = logging.getLogger("squeezeos")
 
 load_dotenv()
 
@@ -94,9 +99,86 @@ def get_ribbon_matrix(symbol: str, timeframe: str = "15m") -> dict:
     return {k: result[k] for k in ("symbol", "timeframe", "close", *ribbon_keys)}
 
 
+@mcp.tool()
+def execute_avg_down(
+    symbol: str,
+    timeframe: str = "15m",
+    current_position: float = 0.0,
+    average_entry_price: float = 0.0,
+    drawdown_tier: int = 0,
+) -> dict:
+    """
+    Avg-Down Engine — evaluates whether a tranche average-down is warranted.
+    Returns a binding execution directive with position sizing guidance.
+    This is an EXECUTION-TIER tool. Only call when you hold an open position
+    and are evaluating whether to add capital at current drawdown levels.
+
+    Returns intent + recommended_action + position_context.
+    """
+    result = get_live_intent(
+        symbol=symbol,
+        timeframe=timeframe,
+        current_position=current_position,
+        average_entry_price=average_entry_price,
+        drawdown_tier=drawdown_tier,
+    )
+    intent = result["intent"]
+    close  = result["close"]
+    pnl    = ((close - average_entry_price) / average_entry_price * 100) if average_entry_price > 0 else 0.0
+    return {
+        "symbol":             symbol,
+        "timeframe":          timeframe,
+        "close":              close,
+        "intent":             intent,
+        "execution_price":    result.get("execution_price"),
+        "position_context": {
+            "current_position":     current_position,
+            "average_entry_price":  average_entry_price,
+            "drawdown_tier":        drawdown_tier,
+            "unrealized_pnl_pct":   round(pnl, 2),
+        },
+        "recommended_action": (
+            "ADD_TRANCHE"      if intent == "EXECUTE_TRANCHE_AVG_DOWN" else
+            "EXIT_PROFIT"      if intent == "EXECUTE_TAKE_PROFIT_EXIT" else
+            "EXIT_STOP"        if intent == "EXECUTE_STRUCTURAL_STOP_OUT" else
+            "HOLD"
+        ),
+        "tier": "execution",
+    }
+
+
+# ── Vault executor background worker ──────────────────────────────────────────
+_EXECUTOR_CFG  = None
+_EXECUTOR_TASK = None
+_LAST_CYCLE: dict = {}
+_EXECUTOR_INTERVAL = int(os.getenv("EXECUTOR_INTERVAL_SECONDS", "900"))  # 15 min default
+
+
+async def _executor_loop():
+    global _LAST_CYCLE
+    log.info("[executor] Background worker started")
+    while True:
+        try:
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, run_execution_cycle, _EXECUTOR_CFG)
+            _LAST_CYCLE = {**result, "timestamp": asyncio.get_event_loop().time()}
+        except Exception as e:
+            log.error(f"[executor] Cycle error: {e}")
+        await asyncio.sleep(_EXECUTOR_INTERVAL)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _EXECUTOR_CFG, _EXECUTOR_TASK
+    _EXECUTOR_CFG = _load_config()
+    if _EXECUTOR_CFG:
+        log.info(f"[executor] Vault config loaded — {_EXECUTOR_CFG['vault_addr']} | {_EXECUTOR_CFG['symbol']} {_EXECUTOR_CFG['timeframe']}")
+        _EXECUTOR_TASK = asyncio.create_task(_executor_loop())
+    else:
+        log.info("[executor] No vault config — execution bridge inactive (set VAULT_ADDRESS, EXECUTION_PRIVATE_KEY, EXECUTION_RPC_URL)")
     yield
+    if _EXECUTOR_TASK:
+        _EXECUTOR_TASK.cancel()
 
 
 app = FastAPI(
@@ -280,13 +362,14 @@ setInterval(load,60000);
 
 @app.get("/.well-known/mcp.json")
 async def well_known_mcp():
+    svc = os.getenv("RENDER_SERVICE_NAME", "sml-vault-engine")
     return {
         "name": "squeeze-vault-executor",
         "version": "1.0.0",
         "description": "SqueezeOS proprietary ribbon matrix vault executor — crypto execution intents via x402 XRPL/RLUSD payment rails",
-        "mcp_endpoint": "https://squeezeos-api-1.onrender.com/mcp/sse",
+        "mcp_endpoint": f"https://{svc}.onrender.com/mcp/sse",
         "transport": "sse",
-        "tools": ["query_execution_intent", "get_ribbon_matrix"],
+        "tools": ["query_execution_intent", "get_ribbon_matrix", "execute_avg_down", "run_backtest"],
     }
 
 
@@ -295,12 +378,105 @@ async def health():
     return {"status": "operational", "service": "SqueezeOS MCP Gateway"}
 
 
+@app.get("/api/vault-status")
+async def vault_status():
+    """Live on-chain vault state — position, balance, last execution cycle."""
+    if not _EXECUTOR_CFG:
+        return {"active": False, "reason": "VAULT_ADDRESS or EXECUTION_PRIVATE_KEY not configured"}
+    state = get_vault_state(_EXECUTOR_CFG)
+    return {
+        "active":       True,
+        "vault":        _EXECUTOR_CFG["vault_addr"],
+        "symbol":       _EXECUTOR_CFG["symbol"],
+        "timeframe":    _EXECUTOR_CFG["timeframe"],
+        "on_chain":     state,
+        "last_cycle":   _LAST_CYCLE or None,
+        "interval_sec": _EXECUTOR_INTERVAL,
+    }
+
+
+@app.post("/api/stripe/checkout")
+async def stripe_checkout(request: Request):
+    """Create a Stripe checkout session for a subscription tier."""
+    try:
+        import stripe
+        stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "")
+        body = await request.json()
+        tier = body.get("tier", "signal")
+
+        price_map = {
+            "signal":   os.getenv("STRIPE_PRICE_SIGNAL",   ""),
+            "executor": os.getenv("STRIPE_PRICE_EXECUTOR",  ""),
+            "vault":    os.getenv("STRIPE_PRICE_VAULT",     ""),
+        }
+        price_id = price_map.get(tier)
+        if not price_id:
+            return JSONResponse(status_code=400, content={"error": f"Unknown tier or price not configured: {tier}"})
+
+        success_url = body.get("success_url", "https://vault.scriptmasterlabs.com?subscribed=1")
+        cancel_url  = body.get("cancel_url",  "https://vault.scriptmasterlabs.com")
+
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata={"tier": tier},
+        )
+        return {"checkout_url": session.url, "session_id": session.id}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """Stripe webhook — handles subscription lifecycle events."""
+    import stripe
+    stripe.api_key   = os.getenv("STRIPE_SECRET_KEY", "")
+    webhook_secret   = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    payload          = await request.body()
+    sig_header       = request.headers.get("stripe-signature", "")
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    etype = event["type"]
+    if etype == "checkout.session.completed":
+        session = event["data"]["object"]
+        log.info(f"[stripe] New subscription — tier={session.get('metadata', {}).get('tier')} customer={session.get('customer')}")
+    elif etype == "customer.subscription.deleted":
+        log.info(f"[stripe] Subscription cancelled — {event['data']['object'].get('id')}")
+
+    return {"received": True}
+
+
+@app.get("/api/pricing")
+async def pricing():
+    """Public pricing tiers."""
+    return {
+        "human_tiers": [
+            {"tier": "signal",   "price_usd_month": 49,  "description": "Scanner, Oracle, Battle Computer — read-only intents"},
+            {"tier": "executor", "price_usd_month": 149, "description": "Signal + Avg-Down Engine — full 5-intent execution system"},
+            {"tier": "vault",    "price_usd_month": 299, "description": "Executor + on-chain vault deployment + automated Base L2 execution"},
+        ],
+        "agent_tiers": [
+            {"tool": "get_ribbon_matrix",      "price_rlusd": 0.005, "type": "data"},
+            {"tool": "query_execution_intent", "price_rlusd": 0.01,  "type": "signal"},
+            {"tool": "run_backtest",           "price_rlusd": 0.05,  "type": "compute"},
+            {"tool": "execute_avg_down",       "price_rlusd": 0.25,  "type": "execution"},
+        ],
+        "payment_networks": ["Stripe (humans)", "x402 XRPL/RLUSD (AI agents)"],
+    }
+
+
 @app.get("/")
 async def root():
     return {
-        "service": "SqueezeOS",
+        "service": "SqueezeOS Vault Engine",
         "mcp_endpoint": "/mcp/sse",
-        "rest_endpoints": ["/api/matrix-intent", "/api/matrix-scan"],
+        "rest_endpoints": ["/api/matrix-intent", "/api/matrix-scan", "/api/backtest", "/api/vault-status", "/api/pricing"],
         "docs": "/docs",
         "payment_network": "XRPL",
         "payment_asset": "RLUSD",
