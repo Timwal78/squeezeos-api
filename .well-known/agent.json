@@ -1,0 +1,13 @@
+{
+  "name": "squeezeos-api",
+  "description": "SqueezeOS API -- live market intelligence and x402 payment gating",
+  "owner": "ScriptMasterLabs",
+  "github": "https://github.com/timwal78/squeezeos-api",
+  "contact": "scriptmasterlabs@gmail.com",
+  "sovereign": {
+    "noMockData": true,
+    "liveDataOnly": true,
+    "noTelemetry": true,
+    "enforcedBy": ".github/workflows/sovereign-data-check.yml"
+  }
+}

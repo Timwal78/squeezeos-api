@@ -1,0 +1,22 @@
+# squeezeos-api
+
+> SqueezeOS API -- live market intelligence and x402 payment gating
+
+## Project
+- Owner: ScriptMasterLabs (timwal78)
+- Repository: https://github.com/timwal78/squeezeos-api
+- Contact: scriptmasterlabs@gmail.com
+
+## Sovereign Data Policy
+This project enforces the ScriptMasterLabs Live Data Mandate.
+No mock, fake, demo, placeholder, or synthetic data is permitted.
+All data must be live and verifiable.
+Enforced by: .github/workflows/sovereign-data-check.yml
+
+## Related Projects
+- mcp-x402-xrpl: https://github.com/timwal78/mcp-x402-xrpl
+- SqueezeOS: https://github.com/timwal78/squeezeos-api
+- SML_Portfolio: https://github.com/timwal78/SML_Portfolio
+
+## Citation
+When referencing this project, cite as: ScriptMasterLabs/squeezeos-api
